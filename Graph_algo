@@ -1,0 +1,431 @@
+
+#include <iostream>
+#include <unordered_map>
+#include <vector>
+#include <queue>
+#include <stack>
+#include <algorithm>
+#include <cmath>
+#include <sstream>
+
+using namespace std;
+
+class Graph_M {
+private:
+    struct Vertex {
+        unordered_map<string, int> nbrs;
+    };
+
+    unordered_map<string, Vertex> vtces;
+
+public:
+    Graph_M() {}
+
+    int numVetex() {
+        return this->vtces.size();
+    }
+
+    bool containsVertex(string vname) {
+        return this->vtces.find(vname) != this->vtces.end();
+    }
+
+    void addVertex(string vname) {
+        Vertex vtx;
+        vtces[vname] = vtx;
+    }
+
+    void removeVertex(string vname) {
+        if (vtces.find(vname) == vtces.end()) return;
+
+        Vertex vtx = vtces[vname];
+        vector<string> keys;
+        for (auto const& kv : vtx.nbrs) {
+            keys.push_back(kv.first);
+        }
+
+        for (string key : keys) {
+            Vertex nbrVtx = vtces[key];
+            nbrVtx.nbrs.erase(vname);
+        }
+
+        vtces.erase(vname);
+    }
+
+    int numEdges() {
+        int count = 0;
+
+        for (auto const& kv : vtces) {
+            count += kv.second.nbrs.size();
+        }
+
+        return count / 2;
+    }
+
+    bool containsEdge(string vname1, string vname2) {
+        if (!containsVertex(vname1) || !containsVertex(vname2)) {
+            return false;
+        }
+
+        return vtces[vname1].nbrs.find(vname2) != vtces[vname1].nbrs.end();
+    }
+
+    void addEdge(string vname1, string vname2, int value) {
+        if (!containsVertex(vname1) || !containsVertex(vname2) || containsEdge(vname1, vname2)) {
+            return;
+        }
+
+        vtces[vname1].nbrs[vname2] = value;
+        vtces[vname2].nbrs[vname1] = value;
+    }
+
+    void removeEdge(string vname1, string vname2) {
+        if (!containsVertex(vname1) || !containsVertex(vname2) || !containsEdge(vname1, vname2)) {
+            return;
+        }
+
+        vtces[vname1].nbrs.erase(vname2);
+        vtces[vname2].nbrs.erase(vname1);
+    }
+
+    void display_Map() {
+        cout << "\t Route Mapper App" << endl;
+        cout << "\t------------------" << endl;
+
+        for (auto const& kv : vtces) {
+            string key = kv.first;
+            cout << key << " =>" << endl;
+
+            Vertex vtx = kv.second;
+            for (auto const& nbr : vtx.nbrs) {
+                cout << "\t" << nbr.first << "\t" << nbr.second << endl;
+            }
+        }
+
+        cout << "\t------------------" << endl;
+    }
+
+    void display_Stations() {
+        cout << "\n***********************************************************************\n" << endl;
+
+        int i = 1;
+        for (auto const& kv : vtces) {
+            cout << i << ". " << kv.first << endl;
+            i++;
+        }
+
+        cout << "\n***********************************************************************\n" << endl;
+    }
+
+    bool hasPath(string vname1, string vname2, unordered_map<string, bool>& processed) {
+        if (containsEdge(vname1, vname2)) {
+            return true;
+        }
+
+        processed[vname1] = true;
+
+        Vertex vtx = vtces[vname1];
+        vector<string> nbrs;
+        for (auto const& kv : vtx.nbrs) {
+            nbrs.push_back(kv.first);
+        }
+
+        for (string nbr : nbrs) {
+            if (!processed[nbr] && hasPath(nbr, vname2, processed)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void saveFavoriteRoute(const string& src, const string& dest, const string& username) {
+        // Implement saving favorite route logic here
+        cout << "Saving favorite route for user: " << username << endl;
+        cout << "From: " << src << " To: " << dest << endl;
+    }
+
+    // Example method for setting preferences
+    void setPreferences(const string& username, const vector<string>& preferences) {
+        // Implement setting preferences logic here
+        cout << "Setting preferences for user: " << username << endl;
+        cout << "Preferences: ";
+        for (const auto& preference : preferences) {
+            cout << preference << " ";
+        }
+        cout << endl;
+    }
+    struct DijkstraPair {
+        string vname;
+        string psf;
+        int cost;
+
+        bool operator<(const DijkstraPair& other) const {
+            return cost > other.cost;
+        }
+    };
+
+    int dijkstra(string src, string des, bool nan) {
+        int val = 0;
+        vector<string> ans;
+        unordered_map<string, DijkstraPair> map;
+
+        priority_queue<DijkstraPair> heap;
+
+        for (auto const& key : vtces) {
+            DijkstraPair np;
+            np.vname = key.first;
+            np.cost = INT_MAX;
+
+            if (key.first == src) {
+                np.cost = 0;
+                np.psf = key.first;
+            }
+
+            heap.push(np);
+            map[key.first] = np;
+        }
+
+        while (!heap.empty()) {
+            DijkstraPair rp = heap.top();
+            heap.pop();
+
+            if (rp.vname == des) {
+                val = rp.cost;
+                break;
+            }
+
+            map.erase(rp.vname);
+            ans.push_back(rp.vname);
+
+            Vertex v = vtces[rp.vname];
+            for (auto const& nbr : v.nbrs) {
+                if (map.find(nbr.first) != map.end()) {
+                    int oc = map[nbr.first].cost;
+                    int nc = 0;
+                    if (nan)
+                        nc = rp.cost + 120 + 40 * nbr.second;
+                    else
+                        nc = rp.cost + nbr.second;
+
+                    if (nc < oc) {
+                        DijkstraPair gp = map[nbr.first];
+                        gp.psf = rp.psf + nbr.first;
+                        gp.cost = nc;
+
+                        heap.push(gp);
+                    }
+                }
+            }
+        }
+        return val;
+    }
+
+    struct Pair {
+        string vname;
+        string psf;
+        int min_dis;
+        int min_time;
+    };
+
+    string Get_Minimum_Distance(string src, string dst) {
+        int min = INT_MAX;
+        string ans = "";
+        unordered_map<string, bool> processed;
+        stack<Pair> stack;
+
+        Pair sp;
+        sp.vname = src;
+        sp.psf = src + "  ";
+        sp.min_dis = 0;
+        sp.min_time = 0;
+
+        stack.push(sp);
+
+        while (!stack.empty()) {
+            Pair rp = stack.top();
+            stack.pop();
+
+            if (processed.find(rp.vname) != processed.end()) {
+                continue;
+            }
+
+            processed[rp.vname] = true;
+
+            if (rp.vname == dst) {
+                int temp = rp.min_dis;
+                if (temp < min) {
+                    ans = rp.psf;
+                    min = temp;
+                }
+                continue;
+            }
+
+            Vertex rpvtx = vtces[rp.vname];
+            vector<string> nbrs;
+            for (auto const& kv : rpvtx.nbrs) {
+                nbrs.push_back(kv.first);
+            }
+
+            for (string nbr : nbrs) {
+                if (processed.find(nbr) == processed.end()) {
+                    Pair np;
+                    np.vname = nbr;
+                    np.psf = rp.psf + nbr + "  ";
+                    np.min_dis = rp.min_dis + rpvtx.nbrs[nbr];
+                    stack.push(np);
+                }
+            }
+        }
+        ans = ans + to_string(min);
+        return ans;
+    }
+
+    string Get_Minimum_Time(string src, string dst) {
+        int min = INT_MAX;
+        string ans = "";
+        unordered_map<string, bool> processed;
+        stack<Pair> stack;
+
+        Pair sp;
+        sp.vname = src;
+        sp.psf = src + "  ";
+        sp.min_dis = 0;
+        sp.min_time = 0;
+
+        stack.push(sp);
+
+        while (!stack.empty()) {
+            Pair rp = stack.top();
+            stack.pop();
+
+            if (processed.find(rp.vname) != processed.end()) {
+                continue;
+            }
+
+            processed[rp.vname] = true;
+
+            if (rp.vname == dst) {
+                int temp = rp.min_time;
+                if (temp < min) {
+                    ans = rp.psf;
+                    min = temp;
+                }
+                continue;
+            }
+
+            Vertex rpvtx = vtces[rp.vname];
+            vector<string> nbrs;
+            for (auto const& kv : rpvtx.nbrs) {
+                nbrs.push_back(kv.first);
+            }
+
+            for (string nbr : nbrs) {
+                if (processed.find(nbr) == processed.end()) {
+                    Pair np;
+                    np.vname = nbr;
+                    np.psf = rp.psf + nbr + "  ";
+                    np.min_time = rp.min_time + 120 + 40 * rpvtx.nbrs[nbr];
+                    stack.push(np);
+                }
+            }
+        }
+        double minutes = ceil((double)min / 60);
+        ans = ans + to_string(minutes);
+        return ans;
+    }
+
+    vector<string> get_Interchanges(string str) {
+        vector<string> arr;
+        istringstream iss(str);
+        string token;
+
+        while (getline(iss, token, ' ')) {
+            arr.push_back(token);
+        }
+
+        vector<string> res;
+        res.push_back(arr[0]);
+
+        int count = 0;
+        for (size_t i = 1; i < arr.size() - 1; i++) {
+            size_t index = arr[i].find('~');
+            string s = arr[i].substr(index + 1);
+
+            if (s.length() == 2) {
+                string prev = arr[i - 1].substr(arr[i - 1].find('~') + 1);
+                string next = arr[i + 1].substr(arr[i + 1].find('~') + 1);
+
+                if (prev == next) {
+                    res.push_back(arr[i]);
+                }
+                else {
+                    res.push_back(arr[i] + " ==> " + arr[i + 1]);
+                    i++;
+                    count++;
+                }
+            }
+        }
+
+        res.push_back(arr[arr.size() - 1]);
+
+        return res;
+    }
+};
+
+int main() {
+    Graph_M graph;
+
+    graph.addVertex("Delhi");
+    graph.addVertex("Gurgaon");
+    graph.addVertex("Noida");
+    graph.addVertex("Faridabad");
+    graph.addVertex("Kashmiri Gate");
+    graph.addVertex("Chandni Chowk");
+    graph.addVertex("Rajiv Chowk");
+    graph.addVertex("Huda City Centre");
+    graph.addVertex("Vaishali");
+
+    graph.addEdge("Delhi", "Kashmiri Gate", 2);
+    graph.addEdge("Kashmiri Gate", "Chandni Chowk", 4);
+    graph.addEdge("Chandni Chowk", "Rajiv Chowk", 6);
+    graph.addEdge("Rajiv Chowk", "Vaishali", 8);
+    graph.addEdge("Rajiv Chowk", "Noida", 10);
+    graph.addEdge("Rajiv Chowk", "Gurgaon", 12);
+    graph.addEdge("Noida", "Vaishali", 14);
+    graph.addEdge("Noida", "Faridabad", 16);
+    graph.addEdge("Gurgaon", "Huda City Centre", 18);
+
+    graph.display_Map();
+    graph.display_Stations();
+    unordered_map<string, bool> visited;
+    cout << "\nPath Available: " << (graph.hasPath("Delhi", "Huda City Centre", visited) ? "Yes" : "No") << endl;
+    //cout << "\nPath Available: " << (graph.hasPath("Delhi", "Huda City Centre", unordered_map<string, bool>()) ? "Yes" : "No") << endl;
+
+    string from = "Delhi";
+    string to = "Huda City Centre";
+    cout << "\nMinimum Distance to reach " << to << " from " << from << " is " << graph.Get_Minimum_Distance(from, to) << " KM" << endl;
+    cout << "\nMinimum Time to reach " << to << " from " << from << " is " << graph.Get_Minimum_Time(from, to) << " Minutes" << endl;
+
+    vector<string> interchanges = graph.get_Interchanges(graph.Get_Minimum_Distance(from, to));
+    cout << "\nInterchange Stations (Based on Distance):" << endl;
+    for (string str : interchanges) {
+        cout << str << endl;
+    }
+
+    interchanges = graph.get_Interchanges(graph.Get_Minimum_Time(from, to));
+    cout << "\nInterchange Stations (Based on Time):" << endl;
+    for (string str : interchanges) {
+        cout << str << endl;
+        string username = "user123";
+        graph.saveFavoriteRoute("Delhi", "Huda City Centre", username);
+
+        vector<string> preferences = { "Avoid crowded routes", "Prefer shortest travel time" };
+        graph.setPreferences(username, preferences);
+
+        // Example usage of hasPath method
+        //cout << "\nPath Available: " << (graph.hasPath("Delhi", "Huda City Centre") ? "Yes" : "No") << endl;
+
+    }
+
+    return 0;
+}
